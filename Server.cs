@@ -6,7 +6,7 @@ using System;
 using System.Threading;
 using System.Collections.Generic;
 
-class Program
+class Server
 {
 	const string PROCESS_LOCATION = "D:\\Example\\Process\\Console3D.exe";
 	const string BOARD_LOCATION = "D:\\Example\\board.txt";

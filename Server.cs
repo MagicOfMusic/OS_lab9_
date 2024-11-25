@@ -1,14 +1,15 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System;
 using System.Threading;
 using System.Collections.Generic;
+using System.Linq;
 
 class Server
 {
-	const string PROCESS_LOCATION = "D:\\Example\\Process\\Console3D.exe";
+	const string PROCESS_LOCATION = "D:\\Example\\Process\\delete2.exe";
 	const string BOARD_LOCATION = "D:\\Example\\board.txt";
 	const int PROCESS_COUNT = 4;
 	const int MILLISECONDS_TIME = 30000; //180000
@@ -19,6 +20,7 @@ class Server
 	static Thread[] clientThreads = new Thread[PROCESS_COUNT];
 
 	static Queue<TcpClient> clientsQueue = new Queue<TcpClient>();
+	static Thread queueHandlingThread;
 	static bool isWaitingForEnd = false;
 
 	static bool isEnd = false;
@@ -30,33 +32,11 @@ class Server
 
 		CreateServer();
 
-		for(int i = 0; i < PROCESS_COUNT; i++)
-		{
-			ProcessStartInfo startInfo = new ProcessStartInfo
-			{
-				FileName = PROCESS_LOCATION,
-				Arguments = BOARD_LOCATION + " " + i.ToString(),
-				UseShellExecute = true
-			};
-			Process process = Process.Start(startInfo);
-			clients[i] = server.AcceptTcpClient();
-			int temp = i;
-			(clientThreads[i] = new Thread(() => HandleClient(temp))).Start();
-		}
-
-		(new Thread(HandleQueue)).Start();
+		CreateProcesses();
 
 		Thread.Sleep(MILLISECONDS_TIME);
 
-		byte[] buffer = System.Text.Encoding.ASCII.GetBytes("GenerationEnded");
-		for (int i = 0; i < PROCESS_COUNT; i++)
-		{
-			clients[i].GetStream().Write(buffer, 0, buffer.Length);
-		}
-
-		isEnd = true;
-
-		//Console.ReadKey();
+		EndGeneration();
 	}
 
 	static void CreateServer()
@@ -65,10 +45,49 @@ class Server
 		server.Start();
 	}
 
+	static void CreateProcesses()
+	{
+		for (int i = 0; i < PROCESS_COUNT; i++)
+		{
+			ProcessStartInfo startInfo = new ProcessStartInfo
+			{
+				FileName = PROCESS_LOCATION,
+				Arguments = BOARD_LOCATION + " " + i.ToString(),
+				UseShellExecute = true
+			};
+			Process.Start(startInfo);
+			clients[i] = server.AcceptTcpClient();
+			int temp = i;
+			(clientThreads[i] = new Thread(() => HandleClient(temp))).Start();
+		}
+
+		(queueHandlingThread = new Thread(HandleQueue)).Start();
+	}
+
+	static void EndGeneration()
+	{
+		Console.WriteLine("GenerationEnded");
+		byte[] buffer = System.Text.Encoding.ASCII.GetBytes("GenerationEnded");
+		for (int i = 0; i < PROCESS_COUNT; i++)
+		{
+			clients[i].GetStream().Write(buffer, 0, buffer.Length);
+		}
+
+		while (clientsQueue.Count > 0);
+
+		isEnd = true;
+
+		queueHandlingThread.Join();
+
+		for (int i = 0; i < PROCESS_COUNT; i++)
+		{
+			clientThreads[i].Join();
+		}
+	}
+
 	static void HandleQueue()
 	{
 		byte[] buffer = System.Text.Encoding.ASCII.GetBytes("PermissionGranted");
-		int currentCount = 0;
 		while (!isEnd)
 		{
 			if (!isWaitingForEnd)
@@ -77,7 +96,6 @@ class Server
 				{
 					Console.WriteLine("PermissionGranted");
 					clientsQueue.Peek().GetStream().Write(buffer, 0, buffer.Length);
-					currentCount = clientsQueue.Count;
 					isWaitingForEnd = true;
 				}
 			}
@@ -91,10 +109,10 @@ class Server
 		while (true)
 		{
 			byte[] buffer = new byte[1024];
-			int i = clientStream.Read(buffer, 0, buffer.Length);
-			if (i != 0)
+			int bytesRead = clientStream.Read(buffer, 0, buffer.Length);
+			if (bytesRead != 0)
 			{
-				string data = System.Text.Encoding.ASCII.GetString(buffer, 0, i);
+				string data = System.Text.Encoding.ASCII.GetString(buffer, 0, bytesRead);
 				Console.WriteLine(data);
 				if (data == "RequestFile")
 				{
@@ -104,6 +122,10 @@ class Server
 				{
 					clientsQueue.Dequeue();
 					isWaitingForEnd = false;
+				}
+				else if(data == "FileRead")
+				{
+					break;
 				}
 			}
 		}

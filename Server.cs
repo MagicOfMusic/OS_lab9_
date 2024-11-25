@@ -141,7 +141,28 @@ class Server
 		{
 			if (notFilledIndex < bestVotes.Length)
 			{
-				bestVotes[notFilledIndex] = new Tuple<int, int>(votePair.Key, votePair.Value);
+				int insertIndex = notFilledIndex;
+				for (int i = 0; i < notFilledIndex; i++)
+				{
+					if (votePair.Value > bestVotes[i].Item2)
+					{
+						insertIndex = i;
+					}
+				}
+
+				if(insertIndex == notFilledIndex)
+				{
+					bestVotes[notFilledIndex] = new Tuple<int, int>(votePair.Key, votePair.Value);
+				}
+				else
+				{
+					for (int i = notFilledIndex; i > insertIndex; i--)
+					{
+						bestVotes[i] = bestVotes[i-1];
+					}
+
+					bestVotes[insertIndex] = new Tuple<int, int>(votePair.Key, votePair.Value);
+				}
 				notFilledIndex++;
 			}
 			else
@@ -158,7 +179,7 @@ class Server
 
 		for (int i = 0; i < bestVotes.Length; i++)
 		{
-			File.AppendAllText(BOARD_LOCATION, lines[bestVotes[i].Item1 - 1] + Environment.NewLine);
+			File.AppendAllText(BOARD_LOCATION, lines[bestVotes[i].Item1 - 1] + "   Votes: " + bestVotes[i].Item2 + Environment.NewLine);
 		}
 	}
 

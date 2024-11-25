@@ -9,7 +9,7 @@ using System.Linq;
 
 class Server
 {
-	const string PROCESS_LOCATION = "D:\\Example\\Process\\delete2.exe";
+	const string PROCESS_LOCATION = "D:\\MyProjects\\Моє\\c++\\ProjectWithTests\\delete2\\x64\\Debug\\delete2.exe";
 	const string BOARD_LOCATION = "D:\\Example\\board.txt";
 	const int PROCESS_COUNT = 4;
 	const int MILLISECONDS_TIME = 30000; //180000
@@ -37,6 +37,11 @@ class Server
 		Thread.Sleep(MILLISECONDS_TIME);
 
 		EndGeneration();
+
+		string[] lines = File.ReadAllLines(BOARD_LOCATION);
+		DisplayBoard(lines);
+
+		GetVotes(lines);
 	}
 
 	static void CreateServer()
@@ -82,6 +87,78 @@ class Server
 		for (int i = 0; i < PROCESS_COUNT; i++)
 		{
 			clientThreads[i].Join();
+		}
+	}
+
+	static void DisplayBoard(string[] lines)
+	{
+		for (int i = 0; i < lines.Length; i++)
+		{
+			Console.WriteLine(lines[i]);
+		}
+	}
+
+	static void GetVotes(string[] lines)
+	{
+		File.AppendAllText(BOARD_LOCATION, "----------------------------------------" + Environment.NewLine + "Best 3 ideas:" + Environment.NewLine);
+
+		Dictionary<int, int> allVotes = new Dictionary<int, int>();
+		for (int i = 0; i < clients.Length; i++)
+		{
+			NetworkStream clientStream = clients[i].GetStream();
+			byte[] buffer = new byte[1024];
+			int bytesRead = clientStream.Read(buffer, 0, buffer.Length);
+			if (bytesRead != 0)
+			{
+				string[] data = System.Text.Encoding.ASCII.GetString(buffer, 0, bytesRead).Split(' ');
+				Console.WriteLine(data[0] + " " + data[1] + " " + data[2] + " " + data[3]);
+				string command = data[0];
+				if (command == "Vote")
+				{
+					for (int voteIndex = 1; voteIndex < data.Length; voteIndex++)
+					{
+						int vote = int.Parse(data[voteIndex]);
+						if (allVotes.ContainsKey(vote))
+						{
+							allVotes[vote]++;
+						}
+						else
+						{
+							allVotes[vote] = 1;
+						}
+					}
+				}
+			}
+		}
+
+		Tuple<int, int>[] bestVotes = new Tuple<int, int>[3];
+		for(int i = 0; i < bestVotes.Length; i++)
+		{
+			bestVotes[i] = new Tuple<int, int>(-1, 0);
+		}
+		int notFilledIndex = 0;
+		foreach(KeyValuePair<int, int> votePair in allVotes)
+		{
+			if (notFilledIndex < bestVotes.Length)
+			{
+				bestVotes[notFilledIndex] = new Tuple<int, int>(votePair.Key, votePair.Value);
+				notFilledIndex++;
+			}
+			else
+			{
+				for (int i = 0; i < bestVotes.Length; i++)
+				{
+					if (votePair.Value > bestVotes[i].Item2)
+					{
+						bestVotes[i] = new Tuple<int, int>(votePair.Key, votePair.Value);
+					}
+				}
+			}
+		}
+
+		for (int i = 0; i < bestVotes.Length; i++)
+		{
+			File.AppendAllText(BOARD_LOCATION, lines[bestVotes[i].Item1 - 1] + Environment.NewLine);
 		}
 	}
 

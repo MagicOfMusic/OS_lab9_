@@ -37,11 +37,15 @@ void HandleServerConnection(SOCKET clientSocket)
 
     while (true)
     {
+        srand(static_cast<unsigned>(time(0)) + GetCurrentProcessId());
+        int ideaIndex = rand() % MAX_IDEAS;
+
         const std::string requestMessage = "RequestFile";
         send(clientSocket, requestMessage.c_str(), requestMessage.length(), 0);
 
         bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-        if (bytesReceived <= 0) {
+        if (bytesReceived <= 0)
+        {
             break;
         }
 
@@ -52,9 +56,6 @@ void HandleServerConnection(SOCKET clientSocket)
         {
             std::this_thread::sleep_for(std::chrono::seconds(1));
 
-            srand(static_cast<unsigned>(time(0)) + GetCurrentProcessId());
-            int ideaIndex = rand() % MAX_IDEAS;
-
             std::ofstream outFile(boardLocation, std::ios::app);
             outFile << "Process " << processIndex + 1 << " idea: " << ideas[ideaIndex] << std::endl;
             outFile.close();
@@ -64,7 +65,7 @@ void HandleServerConnection(SOCKET clientSocket)
 
             std::cout << "Idea: " << ideas[ideaIndex] << std::endl;
         }
-        else if (message == "VoteEnded")
+        else if (message == "GenerationEnded")
         {
             int vote1, vote2, vote3;
             while (true) {
@@ -123,6 +124,7 @@ int main(int argc, char* argv[])
         WSACleanup();
         return 1;
     }
+
     if (connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
         std::cerr << "Connection failed!" << std::endl;
         closesocket(clientSocket);

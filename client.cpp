@@ -30,6 +30,38 @@ std::string ideas[MAX_IDEAS] = {
     "AI in Education", "AI in Medicine", "AI in Finance", "AI Ethics"
 };
 
+void SendIdea(SOCKET clientSocket, std::string idea)
+{
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    std::ofstream outFile(boardLocation, std::ios::app);
+    outFile << "Process " << processIndex + 1 << " idea: " << idea << std::endl;
+    outFile.close();
+
+    const std::string completedMessage = "FileProcessed";
+    send(clientSocket, completedMessage.c_str(), completedMessage.length(), 0);
+
+    std::cout << "Idea: " << idea << std::endl;
+}
+
+void Vote(SOCKET clientSocket, int ideasNum)
+{
+    int vote1, vote2, vote3;
+    while (true) {
+        std::cout << "Enter three best ideas: ";
+        std::cin >> vote1 >> vote2 >> vote3;
+
+        if (vote1 >= 1 && vote1 <= ideasNum && vote2 >= 1 && vote2 <= ideasNum && vote3 >= 1 && vote3 <= ideasNum)
+            break;
+        else
+            std::cout << "Error. Choose 1 - " << ideasNum << std::endl;
+    }
+
+    std::string voteMessage = "Vote " + std::to_string(vote1) + " " + std::to_string(vote2) + " " + std::to_string(vote3);
+    send(clientSocket, voteMessage.c_str(), voteMessage.length(), 0);
+}
+
+
 void HandleServerConnection(SOCKET clientSocket)
 {
     char buffer[1024];
@@ -54,34 +86,11 @@ void HandleServerConnection(SOCKET clientSocket)
 
         if (message == "PermissionGranted")
         {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-
-            std::ofstream outFile(boardLocation, std::ios::app);
-            outFile << "Process " << processIndex + 1 << " idea: " << ideas[ideaIndex] << std::endl;
-            outFile.close();
-
-            const std::string completedMessage = "FileProcessed";
-            send(clientSocket, completedMessage.c_str(), completedMessage.length(), 0);
-
-            std::cout << "Idea: " << ideas[ideaIndex] << std::endl;
+            SendIdea(clientSocket, ideas[ideaIndex]);
         }
         else if (message == "GenerationEnded")
         {
-            int vote1, vote2, vote3;
-            while (true) {
-                std::cout << "Enter three best ideas: ";
-                std::cin >> vote1 >> vote2 >> vote3;
-
-                if (vote1 >= 1 && vote1 <= 50 && vote2 >= 1 && vote2 <= 50 && vote3 >= 1 && vote3 <= 50) {
-                    break;
-                }
-                else {
-                    std::cout << "Error. Choose 1 - 50" << std::endl;
-                }
-            }
-
-            std::string voteMessage = "Vote " + std::to_string(vote1) + " " + std::to_string(vote2) + " " + std::to_string(vote3);
-            send(clientSocket, voteMessage.c_str(), voteMessage.length(), 0);
+            Vote(clientSocket, 50);
             break;
         }
     }

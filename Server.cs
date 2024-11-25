@@ -150,19 +150,12 @@ class Server
 					}
 				}
 
-				if(insertIndex == notFilledIndex)
+				for (int i = notFilledIndex; i > insertIndex; i--)
 				{
-					bestVotes[notFilledIndex] = new Tuple<int, int>(votePair.Key, votePair.Value);
+					bestVotes[i] = bestVotes[i - 1];
 				}
-				else
-				{
-					for (int i = notFilledIndex; i > insertIndex; i--)
-					{
-						bestVotes[i] = bestVotes[i-1];
-					}
 
-					bestVotes[insertIndex] = new Tuple<int, int>(votePair.Key, votePair.Value);
-				}
+				bestVotes[insertIndex] = new Tuple<int, int>(votePair.Key, votePair.Value);
 				notFilledIndex++;
 			}
 			else

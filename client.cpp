@@ -7,13 +7,16 @@
 #include <cstdlib>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>
 
 #pragma comment(lib, "ws2_32.lib")
-
 #define MAX_IDEAS 50
 
 std::string boardLocation;
 int processIndex;
+std::string currentIdea;
+bool ideaReceived = false;
+bool generationEnded = false;
 
 std::string ideas[MAX_IDEAS] = {
     "AI", "Blockchain", "Quantum Computing", "Cloud", "Big Data", "IoT",
@@ -29,6 +32,39 @@ std::string ideas[MAX_IDEAS] = {
     "Green Tech", "Biometrics", "Renewable Resources", "AR Advertising",
     "AI in Education", "AI in Medicine", "AI in Finance", "AI Ethics"
 };
+
+DWORD WINAPI MonitorServer(LPVOID lpParam)
+{
+    SOCKET clientSocket = *(SOCKET*)lpParam;
+    char buffer[1024];
+    int bytesReceived;
+
+    while (true)
+    {
+        bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+        if (bytesReceived <= 0)
+        {
+            break;
+        }
+
+        buffer[bytesReceived] = '\0';
+        std::string message(buffer);
+
+        if (message == "GenerationEnded") {
+            generationEnded = true;
+            break;
+        }
+    }
+    return 0;
+}
+
+DWORD WINAPI GetIdeaFromUser(LPVOID lpParam)
+{
+    std::cout << "Enter your idea: ";
+    std::getline(std::cin, currentIdea);
+    ideaReceived = true;
+    return 0;
+}
 
 void SendIdea(SOCKET clientSocket, std::string idea)
 {
@@ -83,7 +119,6 @@ void Vote(SOCKET clientSocket, int ideasNum)
     send(clientSocket, voteMessage.c_str(), voteMessage.length(), 0);
 }
 
-
 void HandleServerConnection(SOCKET clientSocket)
 {
     char buffer[1024];
@@ -91,31 +126,57 @@ void HandleServerConnection(SOCKET clientSocket)
 
     while (true)
     {
-        srand(static_cast<unsigned>(time(0)) + GetCurrentProcessId());
-        int ideaIndex = rand() % MAX_IDEAS;
+        HANDLE hServerMonitor = CreateThread(NULL, 0, MonitorServer, &clientSocket, 0, NULL);
+        HANDLE hUserInput = CreateThread(NULL, 0, GetIdeaFromUser, NULL, 0, NULL);
 
-        const std::string requestMessage = "RequestFile";
-        send(clientSocket, requestMessage.c_str(), requestMessage.length(), 0);
-
-        bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-        if (bytesReceived <= 0)
+        while (true)
         {
-            break;
+            if (generationEnded)
+            {
+                CloseHandle(hServerMonitor);
+                TerminateThread(hUserInput, 0);
+                CloseHandle(hUserInput);
+                PrintIdeas();
+                Vote(clientSocket, 50);
+                break;
+            }
+            else if (ideaReceived)
+            {
+                TerminateThread(hServerMonitor, 0);
+                CloseHandle(hServerMonitor);
+                CloseHandle(hUserInput);
+                break;
+            }
         }
 
-        buffer[bytesReceived] = '\0';
-        std::string message(buffer);
+        if (!generationEnded)
+        {
+            const std::string requestMessage = "RequestFile";
+            send(clientSocket, requestMessage.c_str(), requestMessage.length(), 0);
 
-        if (message == "PermissionGranted")
-        {
-            SendIdea(clientSocket, ideas[ideaIndex]);
+            bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+            if (bytesReceived <= 0)
+            {
+                break;
+            }
+
+            buffer[bytesReceived] = '\0';
+            std::string message(buffer);
+
+            if (message == "PermissionGranted")
+            {
+                SendIdea(clientSocket, currentIdea);
+            }
+            else if (message == "GenerationEnded")
+            {
+                PrintIdeas();
+                Vote(clientSocket, 50);
+                break;
+            }
         }
-        else if (message == "GenerationEnded")
-        {
-            PrintIdeas();
-            Vote(clientSocket, 50);
-            break;
-        }
+
+        generationEnded = 0;
+        ideaReceived = 0;
     }
 
     closesocket(clientSocket);

@@ -117,6 +117,17 @@ void HandleServerConnection(SOCKET clientSocket)
 		std::cout << "Enter the idea: ";
 		std::getline(std::cin, idea);
 
+		while (true)
+		{
+			if (idea == "")
+			{
+				std::cout << "Enter the correct idea: ";
+				std::getline(std::cin, idea);
+			}
+			else
+				break;
+		}
+
 		if (generationEnded)
 		{
 			CloseHandle(hServerMonitor);

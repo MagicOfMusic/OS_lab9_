@@ -117,7 +117,7 @@ class Server
 				{
 					for (int voteIndex = 1; voteIndex < data.Length; voteIndex++)
 					{
-						int vote = int.Parse(data[voteIndex]);
+						int vote = int.Parse(data[voteIndex]) - 1;
 						if (allVotes.ContainsKey(vote))
 						{
 							allVotes[vote]++;
@@ -147,6 +147,7 @@ class Server
 					if (votePair.Value > bestVotes[i].Item2)
 					{
 						insertIndex = i;
+						break;
 					}
 				}
 
@@ -165,6 +166,7 @@ class Server
 					if (votePair.Value > bestVotes[i].Item2)
 					{
 						bestVotes[i] = new Tuple<int, int>(votePair.Key, votePair.Value);
+						break;
 					}
 				}
 			}
@@ -172,7 +174,7 @@ class Server
 
 		for (int i = 0; i < bestVotes.Length; i++)
 		{
-			File.AppendAllText(BOARD_LOCATION, lines[bestVotes[i].Item1 - 1] + "   Votes: " + bestVotes[i].Item2 + Environment.NewLine);
+			File.AppendAllText(BOARD_LOCATION, lines[bestVotes[i].Item1] + "   Votes: " + bestVotes[i].Item2 + Environment.NewLine);
 		}
 	}
 

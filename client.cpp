@@ -82,8 +82,9 @@ void Vote(SOCKET clientSocket, int ideasNum)
 {
 	if (ideasNum < 3)
 	{
-		std::string msg = "There are no enough ideas to vote";
+		std::string msg = "NotEnoughIdeas";
 		send(clientSocket, msg.c_str(), msg.length(), 0);
+		std::cout << "There aren't enough ideas to vote" << std::endl;
 		return;
 	}
 
@@ -216,5 +217,8 @@ int main(int argc, char* argv[])
 	HandleServerConnection(clientSocket);
 
 	WSACleanup();
+
+	Sleep(4000);
+
 	return 0;
 }

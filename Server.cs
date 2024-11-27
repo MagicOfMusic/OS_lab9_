@@ -103,18 +103,19 @@ class Server
 		File.AppendAllText(BOARD_LOCATION, "----------------------------------------" + Environment.NewLine + "Best 3 ideas:" + Environment.NewLine);
 
 		Dictionary<int, int> allVotes = new Dictionary<int, int>();
+		byte[] buffer = new byte[1024];
+		bool notEnoughIdeas = false;
 		for (int i = 0; i < clients.Length; i++)
 		{
 			NetworkStream clientStream = clients[i].GetStream();
-			byte[] buffer = new byte[1024];
 			int bytesRead = clientStream.Read(buffer, 0, buffer.Length);
 			if (bytesRead != 0)
 			{
 				string[] data = System.Text.Encoding.ASCII.GetString(buffer, 0, bytesRead).Split(' ');
-				Console.WriteLine(data[0] + " " + data[1] + " " + data[2] + " " + data[3]);
 				string command = data[0];
 				if (command == "Vote")
 				{
+					Console.WriteLine(data[0] + " " + data[1] + " " + data[2] + " " + data[3]);
 					for (int voteIndex = 1; voteIndex < data.Length; voteIndex++)
 					{
 						int vote = int.Parse(data[voteIndex]) - 1;
@@ -128,7 +129,17 @@ class Server
 						}
 					}
 				}
+				else if(command == "NotEnoughIdeas")
+				{
+					notEnoughIdeas = true;
+				}
 			}
+		}
+
+		if(notEnoughIdeas)
+		{
+			Console.WriteLine("There weren't enough ideas to vote");
+			return;
 		}
 
 		Tuple<int, int>[] bestVotes = new Tuple<int, int>[3];
@@ -199,9 +210,9 @@ class Server
 	{
 		NetworkStream clientStream = clients[index].GetStream();
 
+		byte[] buffer = new byte[1024];
 		while (true)
 		{
-			byte[] buffer = new byte[1024];
 			int bytesRead = clientStream.Read(buffer, 0, buffer.Length);
 			if (bytesRead != 0)
 			{
